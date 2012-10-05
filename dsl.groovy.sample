@@ -1,0 +1,16 @@
+contractMail {
+	to ''
+	from ''
+	cc ''
+	bcc ''
+	replyTo ''
+	subject ''
+	subjectCode ''
+	template ''
+	
+}
+
+registrationMail {
+	inherits contractMail
+	template ''	
+}
