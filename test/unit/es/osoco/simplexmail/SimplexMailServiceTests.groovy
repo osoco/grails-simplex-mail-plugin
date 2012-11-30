@@ -1,7 +1,5 @@
 package es.osoco.simplexmail
 
-
-
 import grails.test.mixin.*
 import org.junit.*
 
@@ -11,6 +9,8 @@ import org.junit.*
 @TestFor(SimplexMailService)
 class SimplexMailServiceTests {
 
+	
+	
     void testSomething() {
         fail "Implement me"
     }

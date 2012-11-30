@@ -22,3 +22,6 @@ log4j = {
 
     warn   'org.mortbay.log'
 }
+
+
+simplex.mail.config.files.paths = 'grails-app/conf/MailConfig.groovy'
