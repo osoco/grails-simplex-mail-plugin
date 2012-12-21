@@ -1,25 +1,29 @@
+import org.apache.commons.logging.LogFactory
+
 class SimplexMailGrailsPlugin {
+    private static final log = LogFactory.getLog("es.osoco.simplexmail")
+    
     // the plugin version
-    def version = "0.1"
+    def version = "0.1-SNAPSHOT"
     // the version or versions of Grails the plugin is designed for
     def grailsVersion = "2.0 > *"
     // the other plugins this plugin depends on
-    def dependsOn = [:]
-	//def loadBefore = ['asynchronous-mail']
+    //def dependsOn = ['asynchronous-mail' : "0.7>*"]
+    //def loadBefore = ['asynchronous-mail']
 	//def loadAfter = ['asynchronous-mail']
     // resources that are excluded from plugin packaging
     def pluginExcludes = [
         "grails-app/views/error.gsp"
     ]
-
+ 
     // TODO Fill in these fields
     def title = "Grails Simplex Mail Plugin Plugin" // Headline display name of the plugin
     def author = "Your name"
     def authorEmail = ""
     def description = '''\
-Brief summary/description of the plugin.
-'''
-
+        Simplex mail plugin provides a service for do a very simple mail definition
+    '''
+    def simplexMailService
     // URL to the plugin's documentation
     def documentation = "http://grails.org/plugin/grails-simplex-mail-plugin"
 
@@ -49,7 +53,7 @@ Brief summary/description of the plugin.
     }
 
     def doWithDynamicMethods = { ctx ->
-        // TODO Implement registering dynamic methods to classes (optional)
+        reloadMailConfig(ctx)
     }
 
     def doWithApplicationContext = { applicationContext ->
@@ -60,15 +64,32 @@ Brief summary/description of the plugin.
         // TODO Implement code that is executed when any artefact that this plugin is
         // watching is modified and reloaded. The event contains: event.source,
         // event.application, event.manager, event.ctx, and event.plugin.
-		println "onChange for event $event"	
-    }
+        reloadMailConfig(event.ctx)
+    }  
 
     def onConfigChange = { event ->
         // TODO Implement code that is executed when the project configuration changes.
         // The event is the same as for 'onChange'.
+        reloadMailConfig(event.ctx)
     }
 
     def onShutdown = { event ->
         // TODO Implement code that is executed when the application shuts down (optional)
     }
+    
+    def getWatchedResources() {
+        def watchedPaths = [grailsApplication.config.simplex.mail.config.files.paths].flatten()
+        def watchedFiles = watchedPaths.collect { "file:./${it}"}
+        log.info  "The files for search changes for reload simplex mail service are $watchedFiles"
+        return watchedFiles
+    }
+    
+    private reloadMailConfig(ctx) {
+        ctx.simplexMailLoaderService.loadMailConfig()
+    }
+      
+    private getGrailsApplication() {
+        org.codehaus.groovy.grails.commons.ApplicationHolder.application
+    }
+    
 }

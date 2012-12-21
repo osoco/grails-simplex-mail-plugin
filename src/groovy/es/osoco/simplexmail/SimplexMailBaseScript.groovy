@@ -1,5 +1,7 @@
 package es.osoco.simplexmail
 
+import es.osoco.simplexmail.exceptions.InvalidMailPropertyException
+
 abstract class SimplexMailBaseScript extends Script {
 	
 	def mailProperties = [:]
@@ -18,7 +20,7 @@ abstract class SimplexMailBaseScript extends Script {
 					mailProperties[currentMail][propertyType] = propertyType.parseArgs(args)
 				}
 				else {
-					throw InvalidMailPropertyException(currentMail, methodName)
+					throw new InvalidMailPropertyException(currentMail, methodName)
 				}
 			}
 		}

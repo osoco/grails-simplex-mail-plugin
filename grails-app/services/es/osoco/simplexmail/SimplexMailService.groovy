@@ -1,104 +1,108 @@
 package es.osoco.simplexmail
+
+import javax.activation.MimetypesFileTypeMap
 import org.codehaus.groovy.control.CompilerConfiguration
+import es.osoco.simplexmail.exceptions.InvalidAttachmentException
+import es.osoco.simplexmail.exceptions.InvalidMailPropertyValueException
+import org.apache.commons.logging.LogFactory
 import static es.osoco.simplexmail.MailPropertyType.*
 
 class SimplexMailService {
-
-	def transactional = false
-	def asynchronousMailService 
+    private static final log = LogFactory.getLog("es.osoco.simplexmail")
+    
+    def asynchronousMailService 
 	def grailsApplication
-	
-	public loadMailConfig() {
-		println grailsApplication
-		println getResourceByPath(grailsApplication.config.simplex.mail.config.files.paths)
-		
-		[grailsApplication.config.simplex.mail.config.files.paths].flatten().each { configFilePath -> 
-			injectMailSendingMethods(
-				postProcessMailConfig(
-					buildGroovyShell().evaluate(getResourceByPath(configFilePath)?.text)
-				)
-			)
-		}
-	}
-	
-	public sendEmail(emailProperties) {
-		println "INVOKED $emailProperties"
-		/*
-		asynchronousMailService.sendAsynchronousMail {
-			emailProperties.each { type, values -> with(types.configure(values) }
-		}*//*
-		asynchronousMailService.sendAsynchronousMail {
-			to toEmail
-			from fromEmail
-			cc ccEmails
-			bcc bccEmails
-			replyTo replyToEmail
-			subject emailSubject
-			html emailBody
-			attachments?.each {
-				attachment ->
-				attachBytes attachment.name, attachment.mimeType, attachment.content
-			}
-		}*/
-	}
-	
-	private buildGroovyShell() {
-		new GroovyShell(
-			this.class.classLoader, new Binding(grailsApplication.config.toProperties()),
-			new CompilerConfiguration().with { compilerConfig -> 
-				scriptBaseClass = SimplexMailBaseScript.class.name
-				compilerConfig 
-			}
-		)
-	}
-	
-	private injectMailSendingMethods(mailConfig) { 
-		mailConfig.each { mail, props ->
-			this.metaClass."send${mail.capitalize()}" = { Map overwrittenProps = [:] -> 
-				def effectiveProps = props + overwrittenProps
-				println "Sending email $mail with props $effectiveProps"
-				sendEmail(effectiveProps)
-			}
-		}
-	}
-	
-	private getResourceByPath(path)
-	{
-		new File(new grails.util.BuildSettings().baseDir.path + "/" + path)
-	}      
-	
-	private postProcessMailConfig(mailConfig)
-	{
-		resolveAttachments(resolveInherits(mailConfig))
-	}
-	
-	private resolveAttachments(mailConfig)
-	{
-		mailConfig.each { mailName, mailProps ->
-			mailProps[ATTACHMENTS] = mailProps[ATTACHMENTS]?.collect { getResourceByPath(it) }
-		}
-		mailConfig
-	}
+    def messageSource
+    def groovyPageRenderer
+    
+	private sendEmail(emailProperties) {
+        calculateEmailInternacionalizedProperties(emailProperties)
+        checkPropertiesForErrors(emailProperties)
+        
+        log.info( "Sending email from '${emailProperties[FROM]}'" + 
+                "to ${anonymizesEmailTo(emailProperties[TO])}" +                 
+                "subject '${emailProperties[SUBJECT]}'" +
+                "and bcc '${emailProperties[BCC]}'" + 
+                "${emailProperties[ATTACHMENTS] ?: 'not attached data'}" +
+                "locale ${emailProperties[LOCALE]}")
+    
+        resolveaAttachments(emailProperties)
+                 
+        asynchronousMailService.sendMail {
+            multipart true
+            emailProperties.each { type, values ->
+                if(type instanceof MailPropertyType) {
+                    if(type == MailPropertyType.ATTACHMENTS) {
+                        values.each {
+                            attachment ->
+                            owner.delegate.attachBytes attachment.name , attachment.mimeType , attachment.content
+                        }
+                    } else {
+                        delegate."$type.name"(values)
+                    }
+                }
+            }
+        }
+    }
+    
+    private def anonymizesEmailTo(def to)
+    {
+        if (to instanceof String) {
+            return to.substring(0,4).concat("****")
+        } else {
+            return to.collect { it.substring(0,4).concat("****") }
+        }
+    }
+    
+    private calculateEmailInternacionalizedProperties(emailProperties) {
+        if(!emailProperties[LOCALE]) {
+            emailProperties[LOCALE] = new Locale(grailsApplication.config.simplex.mail.language.default.isoCode)
+        }
+        def mailLocale = emailProperties[LOCALE]
+        
+        emailProperties[SUBJECT] = messageSource.getMessage(emailProperties[SUBJECT], null, mailLocale )
+        
+        emailProperties[HTML] = groovyPageRenderer.render(view: emailProperties[HTML] , 
+            model: (emailProperties.model?:[:] << [locale:mailLocale] ) )
+    }
+    
+    private checkPropertiesForErrors(emailProperties) {
+        MailPropertyType.findAll().each {
+            propertyType ->
+            if(!propertyType.validate(emailProperties[propertyType])) {
+                throw new InvalidMailPropertyValueException(propertyType,emailProperties[propertyType], 
+                    emailProperties[SimplexMailLoaderService.MAIL_METHOD_NAME])
+            }
+        }
+    }
+    
+    private resolveaAttachments(emailProperties) {
+        if(emailProperties[ATTACHMENTS]) {
+            emailProperties[ATTACHMENTS] = generateAttachments(emailProperties[ATTACHMENTS],
+                emailProperties[SimplexMailLoaderService.MAIL_METHOD_NAME])
+        }
+    }
 
-	private resolveInherits(mailConfig)
-	{
-		def resolve = { mailProps, stack ->
-				def inherits = mailProps.remove(INHERITS)?.getAt(0)
-				if (inherits)
-				{
-					if (inherits in stack) { 
-						throw new CircularInheritanceException(stack)
-					}
-					else {
-						mailProps << call(mailConfig[inherits], stack << inherits)
-					} 
-				}
-				else
-				{
-					mailProps
-				}
-		}
-		mailConfig.each { mailName, mailProps -> resolve(mailProps, [mailName]) }
-		mailConfig
-	}
+    private def generateAttachments(files, methodName)
+    {
+        files.inject([]) {
+            attachments, file ->
+            if(file.exists()) 
+            {
+                def attachment = [
+                    name: file.getName(),
+                    mimeType: new MimetypesFileTypeMap().getContentType(file),
+                    content: file.getBytes()
+                ]
+                attachments.add(attachment)
+            }
+            else
+            {
+                throw new InvalidAttachmentException(file, methodName)
+            }
+            return attachments
+        }
+        
+    }
+
 }

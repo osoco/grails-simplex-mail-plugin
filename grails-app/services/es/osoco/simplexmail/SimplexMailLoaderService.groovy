@@ -1,16 +1,20 @@
 package es.osoco.simplexmail
 
 import org.codehaus.groovy.control.CompilerConfiguration
+
+import es.osoco.simplexmail.exceptions.CircularInheritanceException
+import org.apache.commons.logging.LogFactory
 import static es.osoco.simplexmail.MailPropertyType.*
 
 class SimplexMailLoaderService {
-
-    final String MAIL_METHOD_NAME = "methodName"
+    private static final log = LogFactory.getLog("es.osoco.simplexmail")
+    
+    static final String MAIL_METHOD_NAME = "methodName"
     static transactional = false
     def grailsApplication
     
     public loadMailConfig() {
-        println ('Loading simplex-mail-config from file' + 
+        log.info ('Loading simplex-mail-config from file' + 
                   "${getResourceByPath(grailsApplication.config.simplex.mail.config.files.paths)}")
         
         [grailsApplication.config.simplex.mail.config.files.paths].flatten().each { configFilePath ->
@@ -35,7 +39,9 @@ class SimplexMailLoaderService {
     private injectMailSendingMethods(mailConfig) {
         mailConfig.each { mail, props ->
             def methodName = "send${mail.capitalize()}".toString()
-            println "Injecting mail method $methodName with props $props"
+            
+            log.info "Injecting mail method $methodName with props $props"
+            
             props[MAIL_METHOD_NAME] = methodName
             
             SimplexMailService.metaClass."$methodName" = { Map overwrittenProps = [:] ->
@@ -76,13 +82,15 @@ class SimplexMailLoaderService {
                     throw new CircularInheritanceException(stack)
                 }
                 else {
-                    mailProps << call(mailConfig[inherits], stack << inherits)
+                    call(mailConfig[inherits], stack << inherits).each {
+                        property, value ->
+                        if (!mailProps.containsKey(property)) {
+                            mailProps[property] = value
+                        }
+                    }
                 }
             }
-            else
-            {
-                mailProps
-            }
+            return mailProps
         }
         mailConfig.each { mailName, mailProps -> resolve(mailProps, [mailName]) }
         mailConfig
