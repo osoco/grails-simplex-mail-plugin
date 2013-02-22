@@ -3,6 +3,7 @@ package es.osoco.simplexmail
 enum MailPropertyType {
 	TO('to', true, null),
 	FROM('from', false, null),
+    CC('cc', true, null),
 	BCC('bcc', true, null),
 	REPLYTO('replyTo', false, null),
 	SUBJECT('subject', false,  { aValue -> aValue as Boolean }),
