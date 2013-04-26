@@ -4,7 +4,7 @@ class SimplexMailGrailsPlugin {
     private static final log = LogFactory.getLog("es.osoco.simplexmail")
     
     // the plugin version
-    def version = "0.1-SNAPSHOT"
+    def version = "0.2"
     // the version or versions of Grails the plugin is designed for
     def grailsVersion = "2.0 > *"
     // the other plugins this plugin depends on
@@ -54,6 +54,7 @@ class SimplexMailGrailsPlugin {
 
     def doWithDynamicMethods = { ctx ->
         reloadMailConfig(ctx)
+//        enhanceGroovyShell()
     }
 
     def doWithApplicationContext = { applicationContext ->
@@ -64,12 +65,14 @@ class SimplexMailGrailsPlugin {
         // TODO Implement code that is executed when any artefact that this plugin is
         // watching is modified and reloaded. The event contains: event.source,
         // event.application, event.manager, event.ctx, and event.plugin.
+//        enhanceGroovyShell()
         reloadMailConfig(event.ctx)
     }  
 
     def onConfigChange = { event ->
         // TODO Implement code that is executed when the project configuration changes.
         // The event is the same as for 'onChange'.
+//        enhanceGroovyShell()
         reloadMailConfig(event.ctx)
     }
 
@@ -78,10 +81,7 @@ class SimplexMailGrailsPlugin {
     }
     
     def getWatchedResources() {
-        def watchedPaths = [grailsApplication.config.simplex.mail.config.files.paths].flatten()
-        def watchedFiles = watchedPaths.collect { "file:./${it}"}
-        log.info  "The files for search changes for reload simplex mail service are $watchedFiles"
-        return watchedFiles
+        def watchedResources = "file:./grails-app/conf/*"
     }
     
     private reloadMailConfig(ctx) {
@@ -91,5 +91,4 @@ class SimplexMailGrailsPlugin {
     private getGrailsApplication() {
         org.codehaus.groovy.grails.commons.ApplicationHolder.application
     }
-    
 }

@@ -1,6 +1,7 @@
 package es.osoco.simplexmail
 
 import org.codehaus.groovy.control.CompilerConfiguration
+import org.codehaus.groovy.runtime.InvokerHelper
 
 import es.osoco.simplexmail.exceptions.CircularInheritanceException
 import org.apache.commons.logging.LogFactory
@@ -14,26 +15,22 @@ class SimplexMailLoaderService {
     def grailsApplication
     
     public loadMailConfig() {
-        log.info ('Loading simplex-mail-config from file' + 
-                  "${getResourceByPath(grailsApplication.config.simplex.mail.config.files.paths)}")
+        def mailConfigScriptNames = [grailsApplication.config.simplex.mail.config.script.names]?.flatten()
         
-        [grailsApplication.config.simplex.mail.config.files.paths].flatten().each { configFilePath ->
+        log.info ("Loading simplex-mail-config from scripts ${mailConfigScriptNames}")
+        
+        mailConfigScriptNames?.each { scriptName ->
             injectMailSendingMethods(
                 postProcessMailConfig(
-                    buildGroovyShell().evaluate(getResourceByPath(configFilePath)?.text)
+                    executeScript(getScriptByName(scriptName))
                 )
             )
         }
     }
     
-    private buildGroovyShell() {
-        new GroovyShell(
-            this.class.classLoader, new Binding(grailsApplication.config.toProperties()),
-            new CompilerConfiguration().with { compilerConfig ->
-                scriptBaseClass = SimplexMailBaseScript.class.name
-                compilerConfig
-            }
-        )
+    private getResourceByPath(path)
+    {
+        new File(path.startsWith("/") ? (new grails.util.BuildSettings().baseDir.path + "/" + path) : path)
     }
     
     private injectMailSendingMethods(mailConfig) {
@@ -51,9 +48,13 @@ class SimplexMailLoaderService {
         }
     }
     
-    private getResourceByPath(path)
+    private getScriptByName(scriptName)
     {
-        new File(new grails.util.BuildSettings().baseDir.path + "/" + path)
+        try {
+            Class.forName(scriptName, false, this.class.classLoader).newInstance()
+        } catch (ClassNotFoundException exception) {
+            log.error("Simplex mail configuration script name ${scriptName} not found",exception )
+        }
     }
     
     private postProcessMailConfig(mailConfig)
@@ -94,6 +95,20 @@ class SimplexMailLoaderService {
         }
         mailConfig.each { mailName, mailProps -> resolve(mailProps, [mailName]) }
         mailConfig
+    }
+    
+    private executeScript(Script script) {
+        try {    
+            SimplexMailBaseScript.enhanceScript(script)
+            script.setBinding(new Binding(grailsApplication.config.toProperties()))
+            script.run()
+        } catch (e) {
+            log.error("An error occurs executing script", e)
+        }finally {
+            if (script != null) {
+                InvokerHelper.removeClass(script.getClass())
+            }
+        }
     }
 
 }

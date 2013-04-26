@@ -2,14 +2,12 @@ package es.osoco.simplexmail
 
 import es.osoco.simplexmail.exceptions.InvalidMailPropertyException
 
-abstract class SimplexMailBaseScript extends Script {
+class SimplexMailBaseScript {
 	
-	def mailProperties = [:]
-	def currentMail
-	
-	def methodMissing(String methodName, args) {
+	def methodMissing = {
+        String methodName, args -> 
 		if (args) {
-			if (args[0] instanceof Closure) {
+            if (args[0] instanceof Closure) {
 				currentMail = methodName
 				mailProperties[currentMail] = [:]
 				with(args[0])
@@ -26,4 +24,11 @@ abstract class SimplexMailBaseScript extends Script {
 		}
 		return mailProperties
 	}
+
+    
+    public static enhanceScript(Script script) {
+        script.metaClass.mailProperties = [:]
+        script.metaClass.currentMail = null
+        script.metaClass.methodMissing = new SimplexMailBaseScript().methodMissing
+    }
 }

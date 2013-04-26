@@ -17,7 +17,7 @@ contractMail {
 registrationMail {
 	inherits 'contractMail'
 	subject 'contracto.muy.rico'
-	bcc 'julian@'
+	bcc 'julian@asdf.com'
 }
 
 	/*from 'diego@toharia.com'

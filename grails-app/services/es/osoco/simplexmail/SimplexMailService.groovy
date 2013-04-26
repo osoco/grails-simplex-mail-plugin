@@ -60,7 +60,13 @@ class SimplexMailService {
         }
         def mailLocale = emailProperties[LOCALE]
         
-        emailProperties[SUBJECT] = messageSource.getMessage(emailProperties[SUBJECT], null, mailLocale )
+        
+        try {
+            emailProperties[SUBJECT] = messageSource.getMessage(emailProperties[SUBJECT]?:'', null, mailLocale )
+        } catch (e) {
+            throw new InvalidMailPropertyValueException(SUBJECT, '',
+                emailProperties[SimplexMailLoaderService.MAIL_METHOD_NAME])
+        }
         
         emailProperties[HTML] = groovyPageRenderer.render(view: emailProperties[HTML] , 
             model: (emailProperties.model?:[:] << [locale:mailLocale] ) )
