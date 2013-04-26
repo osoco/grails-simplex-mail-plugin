@@ -30,7 +30,7 @@ class SimplexMailLoaderService {
     
     private getResourceByPath(path)
     {
-        new File(path.startsWith("/") ? (new grails.util.BuildSettings().baseDir.path + "/" + path) : path)
+        new File(path.startsWith("/") ?  path : (new grails.util.BuildSettings().baseDir.path + "/" + path))
     }
     
     private injectMailSendingMethods(mailConfig) {
