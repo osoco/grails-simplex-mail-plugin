@@ -13,7 +13,7 @@ class SimplexMailService {
     def asynchronousMailService 
 	def grailsApplication
     def messageSource
-    def groovyPageRenderer
+    def customPageRenderer
     
 	private sendEmail(emailProperties) {
         calculateEmailInternacionalizedProperties(emailProperties)
