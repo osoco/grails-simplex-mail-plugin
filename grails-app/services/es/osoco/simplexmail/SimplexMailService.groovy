@@ -68,7 +68,7 @@ class SimplexMailService {
                 emailProperties[SimplexMailLoaderService.MAIL_METHOD_NAME])
         }
         
-        emailProperties[HTML] = groovyPageRenderer.render(view: emailProperties[HTML] , 
+        emailProperties[HTML] = customPageRenderer.render(view: emailProperties[HTML] , 
             model: (emailProperties.model?:[:] << [locale:mailLocale] ) )
     }
     
